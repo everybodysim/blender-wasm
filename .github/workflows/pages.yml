@@ -1,0 +1,68 @@
+name: Deploy Blender WASM to GitHub Pages
+
+on:
+  workflow_run:
+    workflows: ["build-and-release"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download the completed Blender build artifact
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+          path: artifacts
+
+      - name: Download the latest build artifact for manual runs
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: blender-web-*
+          path: artifacts
+          merge-multiple: true
+
+      - name: Assemble the Pages site
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf site
+          mkdir -p site
+          archive="$(find artifacts -type f -name 'blender-web-*.tar.gz' -print -quit)"
+          test -n "$archive"
+          echo "Using build: $archive"
+          tar -xzf "$archive" -C site --strip-components=1
+          test -f site/index.html
+          test -f site/blender.wasm.zst
+          test -f site/manifest.json
+          printf '%s\n' 'Blender WASM Pages deployment' > site/.nojekyll
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
