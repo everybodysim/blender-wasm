@@ -18,6 +18,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Download compiled Blender web build
         run: |
           curl -fL "https://github.com/HeyPuter/blender-wasm/releases/download/1.0.0/blender6.tar.gz" -o blender-web.tar.gz
