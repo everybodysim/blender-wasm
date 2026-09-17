@@ -4,7 +4,6 @@ on:
   workflow_run:
     workflows: ["build-and-release"]
     types: [completed]
-  workflow_dispatch:
 
 permissions:
   actions: read
@@ -18,27 +17,18 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Download the completed Blender build artifact
-        if: github.event_name == 'workflow_run'
         uses: actions/download-artifact@v4
         with:
           github-token: ${{ github.token }}
           run-id: ${{ github.event.workflow_run.id }}
           path: artifacts
-
-      - name: Download the latest build artifact for manual runs
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/download-artifact@v4
-        with:
-          pattern: blender-web-*
-          path: artifacts
-          merge-multiple: true
 
       - name: Assemble the Pages site
         shell: bash
@@ -53,7 +43,7 @@ jobs:
           test -f site/index.html
           test -f site/blender.wasm.zst
           test -f site/manifest.json
-          printf '%s\n' 'Blender WASM Pages deployment' > site/.nojekyll
+          touch site/.nojekyll
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
