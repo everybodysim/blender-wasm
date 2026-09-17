@@ -34,16 +34,23 @@ jobs:
           test -f site/dist/assets.tar.zst
           test -f site/dist/blender.js
 
-      - name: Install GitHub Pages COI service worker
+      - name: Install startup diagnostics and COI service worker
         run: |
           cp coi-serviceworker.js site/dist/coi-serviceworker.js
+          cp pages-diagnostics.js site/dist/pages-diagnostics.js
           python3 - <<'PY'
           from pathlib import Path
           p = Path("site/dist/index.html")
           text = p.read_text(encoding="utf-8")
-          marker = '<script src="coi-serviceworker.js"></script>'
-          if marker not in text:
-              text = text.replace("<head>", "<head>\n    " + marker, 1)
+          markers = [
+              '<script src="coi-serviceworker.js"></script>',
+              '<script src="pages-diagnostics.js"></script>',
+          ]
+          insert = "\n    " + "\n    ".join(markers)
+          if 'coi-serviceworker.js' not in text:
+              text = text.replace("<head>", "<head>" + insert, 1)
+          elif 'pages-diagnostics.js' not in text:
+              text = text.replace("</head>", "    <script src=\"pages-diagnostics.js\"></script>\n</head>", 1)
           p.write_text(text, encoding="utf-8")
           PY
 
