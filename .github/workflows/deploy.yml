@@ -18,30 +18,25 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: demo/package-lock.json
-
-      - name: Install demo dependencies
-        working-directory: demo
-        run: npm ci
-
-      - name: Build static site
-        working-directory: demo
-        run: npm run build
-
-      - name: Add GitHub Pages COI service worker
+      - name: Download compiled Blender web build
         run: |
-          cp coi-serviceworker.js demo/dist/coi-serviceworker.js
+          curl -fL "https://github.com/HeyPuter/blender-wasm/releases/download/1.0.0/blender6.tar.gz" -o blender-web.tar.gz
+
+      - name: Extract compiled site
+        run: |
+          mkdir -p site
+          tar -xzf blender-web.tar.gz -C site
+          test -f site/dist/index.html
+          test -f site/dist/blender.wasm.zst
+          test -f site/dist/assets.tar.zst
+          test -f site/dist/blender.js
+
+      - name: Install GitHub Pages COI service worker
+        run: |
+          cp coi-serviceworker.js site/dist/coi-serviceworker.js
           python3 - <<'PY'
           from pathlib import Path
-          p = Path("demo/dist/index.html")
+          p = Path("site/dist/index.html")
           text = p.read_text(encoding="utf-8")
           marker = '<script src="coi-serviceworker.js"></script>'
           if marker not in text:
@@ -53,9 +48,9 @@ jobs:
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
-          path: demo/dist
+          path: site/dist
 
   deploy:
     environment:
